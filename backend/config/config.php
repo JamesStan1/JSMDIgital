@@ -19,6 +19,6 @@ define('RATE_LIMIT_WINDOW',  300);   // …per N seconds per IP
 // ── Allowed Origins (CORS) ────────────────────────────────────
 define('ALLOWED_ORIGINS', [
     'http://localhost:5173',
-    'http://localhost:3000',
+    'http://localhost:8000',
     APP_URL,
 ]);

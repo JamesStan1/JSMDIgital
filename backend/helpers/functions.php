@@ -175,3 +175,116 @@ function sendMail(string $to, string $subject, string $htmlBody): bool
 
     return mail($to, $encodedSubject, $htmlBody, $headers);
 }
+
+/* ─────────────────────────────────────────────────────────────
+ * Dashboard API — CORS headers (GET/POST/PUT/DELETE + Bearer)
+ * ───────────────────────────────────────────────────────────── */
+function setDashboardCorsHeaders(): void
+{
+    $origin  = $_SERVER['HTTP_ORIGIN'] ?? '';
+    $allowed = ALLOWED_ORIGINS;
+
+    if (in_array($origin, $allowed, true)) {
+        header('Access-Control-Allow-Origin: ' . $origin);
+    }
+
+    header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization');
+    header('Access-Control-Max-Age: 3600');
+    header('Content-Type: application/json; charset=UTF-8');
+    header('X-Content-Type-Options: nosniff');
+    header('X-Frame-Options: DENY');
+
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+        http_response_code(204);
+        exit;
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Token-based authentication helpers
+ * ───────────────────────────────────────────────────────────── */
+function getBearerToken(): ?string
+{
+    // Try standard header first, fall back to apache_request_headers() for CGI setups
+    $header = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    if ($header === '' && function_exists('apache_request_headers')) {
+        $headers = apache_request_headers();
+        $header  = $headers['Authorization'] ?? '';
+    }
+    if (preg_match('/Bearer\s+(.+)$/i', $header, $m)) {
+        return trim($m[1]);
+    }
+    return null;
+}
+
+/**
+ * Validate the Bearer token and return the authenticated staff user row.
+ * Aborts with 401 if the token is invalid or expired.
+ *
+ * @return array{id:int, username:string, email:string, full_name:string, role:string}
+ */
+function requireAuth(): array
+{
+    $token = getBearerToken();
+    if (!$token) {
+        jsonError('Unauthorised.', 401);
+    }
+
+    // Token must be exactly 64 hex chars (32 random bytes)
+    if (!preg_match('/^[0-9a-f]{64}$/', $token)) {
+        jsonError('Unauthorised.', 401);
+    }
+
+    $pdo  = getDbConnection();
+    $stmt = $pdo->prepare(
+        'SELECT u.id, u.username, u.email, u.full_name, u.role
+           FROM staff_sessions s
+           JOIN staff_users u ON s.user_id = u.id
+          WHERE s.token      = :token
+            AND s.expires_at > NOW()
+            AND u.is_active  = 1
+          LIMIT 1'
+    );
+    $stmt->execute([':token' => $token]);
+    $user = $stmt->fetch();
+
+    if (!$user) {
+        jsonError('Unauthorised.', 401);
+    }
+
+    return $user;
+}
+
+/**
+ * Require the authenticated user to have one of the given roles.
+ */
+function requireRole(array $user, array $roles): void
+{
+    if (!in_array($user['role'], $roles, true)) {
+        jsonError('Forbidden. Insufficient permissions.', 403);
+    }
+}
+
+/**
+ * Read the raw JSON request body and return it as an array.
+ * Does NOT enforce POST-only — useful for PUT/PATCH/DELETE with a body.
+ */
+function getRequestBody(): array
+{
+    $raw = file_get_contents('php://input');
+    if ($raw === false || $raw === '') {
+        return [];
+    }
+    $data = json_decode($raw, true);
+    return is_array($data) ? $data : [];
+}
+
+/**
+ * Read a query-string integer parameter, returning a default on failure.
+ */
+function getQueryInt(string $key, int $default = 0): int
+{
+    $val = filter_input(INPUT_GET, $key, FILTER_VALIDATE_INT);
+    return ($val !== false && $val !== null) ? $val : $default;
+}

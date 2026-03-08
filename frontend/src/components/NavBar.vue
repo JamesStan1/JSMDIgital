@@ -14,6 +14,24 @@
         <RouterLink to="/portfolio" active-class="active" @click="closeMenu">Portfolio</RouterLink>
         <RouterLink to="/contact" active-class="active" @click="closeMenu">Contact</RouterLink>
         <RouterLink to="/contact" class="btn-nav-cta" @click="closeMenu">Get a Quote</RouterLink>
+
+        <!-- Logged-in user -->
+        <template v-if="isAuthenticated">
+          <RouterLink to="/dashboard" class="btn-nav-dashboard" @click="closeMenu">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            Dashboard
+          </RouterLink>
+          <button class="btn-nav-logout" @click="logout">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Logout
+          </button>
+        </template>
+
+        <!-- Guest login -->
+        <RouterLink v-else to="/login" class="btn-nav-login" @click="closeMenu">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+          Staff Login
+        </RouterLink>
       </nav>
 
       <!-- Hamburger -->
@@ -34,9 +52,15 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuth } from '@/stores/auth'
+import { api } from '@/utils/api'
+
+const router = useRouter()
+const { isAuthenticated, clearAuth } = useAuth()
 
 const isScrolled = ref(false)
-const menuOpen = ref(false)
+const menuOpen   = ref(false)
 
 function onScroll() {
   isScrolled.value = window.scrollY > 60
@@ -50,6 +74,15 @@ function toggleMenu() {
 function closeMenu() {
   menuOpen.value = false
   document.body.style.overflow = ''
+}
+
+async function logout() {
+  closeMenu()
+  try {
+    await api.post('/auth/logout')
+  } catch (_) { /* ignore network errors on logout */ }
+  clearAuth()
+  router.push({ name: 'home' })
 }
 
 onMounted(() => window.addEventListener('scroll', onScroll, { passive: true }))
@@ -138,6 +171,50 @@ onUnmounted(() => { window.removeEventListener('scroll', onScroll); document.bod
   background: rgba(255,255,255,0.05) !important;
 }
 
+/* Login / Dashboard / Logout buttons */
+.btn-nav-login,
+.btn-nav-dashboard {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #9ca3af !important;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0.45rem 0.85rem;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: color 0.2s, background 0.2s;
+  margin-left: 0.25rem;
+}
+
+.btn-nav-login:hover,
+.btn-nav-dashboard:hover {
+  color: #f9fafb !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.btn-nav-logout {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: none;
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #9ca3af;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0.42rem 0.85rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s, border-color 0.2s;
+  margin-left: 0.25rem;
+}
+
+.btn-nav-logout:hover {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.4);
+  background: rgba(248, 113, 113, 0.08);
+}
+
 /* Hamburger */
 .hamburger {
   display: none;
@@ -206,6 +283,15 @@ onUnmounted(() => { window.removeEventListener('scroll', onScroll); document.bod
     margin-top: 0.75rem;
     width: 220px;
     text-align: center;
+    justify-content: center;
+  }
+
+  .btn-nav-login,
+  .btn-nav-dashboard,
+  .btn-nav-logout {
+    margin-left: 0 !important;
+    margin-top: 0.5rem;
+    width: 220px;
     justify-content: center;
   }
 }

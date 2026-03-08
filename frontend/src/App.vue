@@ -1,10 +1,10 @@
 <template>
   <div class="app-wrapper">
-    <NavBar />
+    <NavBar v-if="!$route.meta.isDashboard" />
     <main>
       <RouterView />
     </main>
-    <FooterSection />
+    <FooterSection v-if="!$route.meta.isDashboard" />
   </div>
 </template>
 
