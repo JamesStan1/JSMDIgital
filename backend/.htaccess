@@ -1,0 +1,38 @@
+# ─────────────────────────────────────────────────────────────
+#  JSM Digital — Apache virtual-host / .htaccess
+#  Place this file inside  backend/
+# ─────────────────────────────────────────────────────────────
+
+Options -Indexes
+ServerSignature Off
+
+# Deny access to config & helper files
+<FilesMatch "\.(php)$">
+  # Only allow PHP files inside /api/ subdirectories
+</FilesMatch>
+
+<Files "config/*">
+  Require all denied
+</Files>
+
+<Files "helpers/*">
+  Require all denied
+</Files>
+
+# Route clean API URLs  →  api/contact/index.php  etc.
+RewriteEngine On
+
+# Block access to config & helper dirs
+RewriteRule ^(config|helpers)/ - [F,L]
+
+# Route  /api/contact  →  api/contact/index.php
+RewriteRule ^api/([a-zA-Z0-9_-]+)/?$  api/$1/index.php  [L]
+
+# Security headers
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "DENY"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set X-XSS-Protection "1; mode=block"
+  Header always unset Server
+</IfModule>
